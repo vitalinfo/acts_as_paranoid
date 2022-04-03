@@ -27,18 +27,18 @@ module ActsAsParanoid
       column_type: "time",
       recover_dependent_associations: true,
       dependent_recovery_window: 2.minutes,
-      recovery_value: nil,
       double_tap_destroys_fully: true
     }
     if options[:column_type] == "string"
       paranoid_configuration.merge!(deleted_value: "deleted")
     end
-    paranoid_configuration.merge!(allow_nulls: true) if options[:column_type] == "boolean"
+
     paranoid_configuration.merge!(options) # user options
 
     unless %w[time boolean string].include? paranoid_configuration[:column_type]
-      raise ArgumentError, "'time', 'boolean' or 'string' expected" \
-        " for :column_type option, got #{paranoid_configuration[:column_type]}"
+      raise ArgumentError,
+            "'time', 'boolean' or 'string' expected for :column_type option," \
+            " got #{paranoid_configuration[:column_type]}"
     end
 
     return if paranoid?

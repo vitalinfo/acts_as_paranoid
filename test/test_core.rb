@@ -4,22 +4,22 @@ require "test_helper"
 
 class ParanoidTest < ParanoidBaseTest
   def test_paranoid?
-    assert !NotParanoid.paranoid?
+    refute_predicate NotParanoid, :paranoid?
     assert_raise(NoMethodError) { NotParanoid.delete_all! }
     assert_raise(NoMethodError) { NotParanoid.with_deleted }
     assert_raise(NoMethodError) { NotParanoid.only_deleted }
 
-    assert ParanoidTime.paranoid?
+    assert_predicate ParanoidTime, :paranoid?
   end
 
   def test_scope_inclusion_with_time_column_type
-    assert ParanoidTime.respond_to?(:deleted_inside_time_window)
-    assert ParanoidTime.respond_to?(:deleted_before_time)
-    assert ParanoidTime.respond_to?(:deleted_after_time)
+    assert_respond_to ParanoidTime, :deleted_inside_time_window
+    assert_respond_to ParanoidTime, :deleted_before_time
+    assert_respond_to ParanoidTime, :deleted_after_time
 
-    assert !ParanoidBoolean.respond_to?(:deleted_inside_time_window)
-    assert !ParanoidBoolean.respond_to?(:deleted_before_time)
-    assert !ParanoidBoolean.respond_to?(:deleted_after_time)
+    refute_respond_to ParanoidBoolean, :deleted_inside_time_window
+    refute_respond_to ParanoidBoolean, :deleted_before_time
+    refute_respond_to ParanoidBoolean, :deleted_after_time
   end
 
   def test_fake_removal
@@ -85,6 +85,21 @@ class ParanoidTest < ParanoidBaseTest
     assert_not_nil pt.paranoid_value
   end
 
+  def test_halted_destroy
+    pt = ParanoidTime.create!(name: "john", destroyable: false)
+
+    assert_raises ActiveRecord::RecordNotDestroyed do
+      pt.destroy!
+    end
+  end
+
+  def test_non_persisted_destroy_fully!
+    pt = ParanoidTime.new
+    assert_nil pt.paranoid_value
+    pt.destroy_fully!
+    assert_nil pt.paranoid_value
+  end
+
   def test_removal_not_persisted
     assert ParanoidTime.new.destroy
   end
@@ -112,6 +127,34 @@ class ParanoidTest < ParanoidBaseTest
     end
   end
 
+  def test_recover_has_one_association
+    parent = ParanoidBoolean.create(name: "parent")
+    child = parent.create_paranoid_has_one_dependant(name: "child")
+
+    parent.destroy
+    assert_predicate parent.paranoid_has_one_dependant, :destroyed?
+
+    parent.recover
+    refute_predicate parent.paranoid_has_one_dependant, :destroyed?
+
+    child.reload
+    refute_predicate child, :destroyed?
+  end
+
+  def test_recover_has_many_association
+    parent = ParanoidTime.create(name: "parent")
+    child = parent.paranoid_has_many_dependants.create(name: "child")
+
+    parent.destroy
+    assert_predicate child, :destroyed?
+
+    parent.recover
+    assert_equal 1, parent.paranoid_has_many_dependants.count
+
+    child.reload
+    refute_predicate child, :destroyed?
+  end
+
   # Rails does not allow saving deleted records
   def test_no_save_after_destroy
     paranoid = ParanoidString.first
@@ -122,6 +165,37 @@ class ParanoidTest < ParanoidBaseTest
     assert_raises ActiveRecord::RecordNotSaved do
       paranoid.save!
     end
+  end
+
+  def test_scope_chaining
+    assert_equal 3, ParanoidBoolean.unscoped.with_deleted.count
+    assert_equal 0, ParanoidBoolean.unscoped.only_deleted.count
+    assert_equal 0, ParanoidBoolean.with_deleted.only_deleted.count
+    assert_equal 3, ParanoidBoolean.with_deleted.with_deleted.count
+  end
+
+  def test_only_deleted_with_deleted_with_boolean_paranoid_column
+    ParanoidBoolean.first.destroy
+    assert_equal 1, ParanoidBoolean.only_deleted.count
+    assert_equal 1, ParanoidBoolean.only_deleted.with_deleted.count
+  end
+
+  def test_with_deleted_only_deleted_with_boolean_paranoid_column
+    ParanoidBoolean.first.destroy
+    assert_equal 1, ParanoidBoolean.only_deleted.count
+    assert_equal 1, ParanoidBoolean.with_deleted.only_deleted.count
+  end
+
+  def test_only_deleted_with_deleted_with_datetime_paranoid_column
+    ParanoidTime.first.destroy
+    assert_equal 1, ParanoidTime.only_deleted.count
+    assert_equal 1, ParanoidTime.only_deleted.with_deleted.count
+  end
+
+  def test_with_deleted_only_deleted_with_datetime_paranoid_column
+    ParanoidTime.first.destroy
+    assert_equal 1, ParanoidTime.only_deleted.count
+    assert_equal 1, ParanoidTime.with_deleted.only_deleted.count
   end
 
   def setup_recursive_tests
@@ -317,28 +391,28 @@ class ParanoidTest < ParanoidBaseTest
 
   def test_deleted?
     ParanoidTime.first.destroy
-    assert ParanoidTime.with_deleted.first.deleted?
+    assert_predicate ParanoidTime.with_deleted.first, :deleted?
 
     ParanoidString.first.destroy
-    assert ParanoidString.with_deleted.first.deleted?
+    assert_predicate ParanoidString.with_deleted.first, :deleted?
   end
 
   def test_delete_deleted?
     ParanoidTime.first.delete
-    assert ParanoidTime.with_deleted.first.deleted?
+    assert_predicate ParanoidTime.with_deleted.first, :deleted?
 
     ParanoidString.first.delete
-    assert ParanoidString.with_deleted.first.deleted?
+    assert_predicate ParanoidString.with_deleted.first, :deleted?
   end
 
   def test_destroy_fully_deleted?
     object = ParanoidTime.first
     object.destroy_fully!
-    assert object.deleted?
+    assert_predicate object, :deleted?
 
     object = ParanoidString.first
     object.destroy_fully!
-    assert object.deleted?
+    assert_predicate object, :deleted?
   end
 
   def test_deleted_fully?
@@ -346,7 +420,7 @@ class ParanoidTest < ParanoidBaseTest
     assert_not ParanoidTime.with_deleted.first.deleted_fully?
 
     ParanoidString.first.destroy
-    assert ParanoidString.with_deleted.first.deleted?
+    assert_predicate ParanoidString.with_deleted.first, :deleted?
   end
 
   def test_delete_deleted_fully?
@@ -357,7 +431,7 @@ class ParanoidTest < ParanoidBaseTest
   def test_destroy_fully_deleted_fully?
     object = ParanoidTime.first
     object.destroy_fully!
-    assert object.deleted_fully?
+    assert_predicate object, :deleted_fully?
   end
 
   def test_paranoid_destroy_callbacks
@@ -533,22 +607,42 @@ class ParanoidTest < ParanoidBaseTest
     assert_equal 0, ParanoidBooleanNotNullable.with_deleted.where(id: ps).count
   end
 
+  def test_boolean_type_with_no_nil_value_after_recover
+    ps = ParanoidBooleanNotNullable.create!
+    ps.destroy
+    assert_equal 1, ParanoidBooleanNotNullable.only_deleted.where(id: ps).count
+
+    ps.recover
+    assert_equal 1, ParanoidBooleanNotNullable.where(id: ps).count
+  end
+
+  def test_boolean_type_with_no_nil_value_after_recover!
+    ps = ParanoidBooleanNotNullable.create!
+    ps.destroy
+    assert_equal 1, ParanoidBooleanNotNullable.only_deleted.where(id: ps).count
+
+    ps.recover!
+    assert_equal 1, ParanoidBooleanNotNullable.where(id: ps).count
+  end
+
   def test_no_double_tap_destroys_fully
     ps = ParanoidNoDoubleTapDestroysFully.create!
     2.times { ps.destroy }
     assert_equal 1, ParanoidNoDoubleTapDestroysFully.with_deleted.where(id: ps).count
   end
 
-  def test_decrement_counters
+  def test_decrement_counters_without_touch
     paranoid_boolean = ParanoidBoolean.create!
     paranoid_with_counter_cache = ParanoidWithCounterCache
       .create!(paranoid_boolean: paranoid_boolean)
 
     assert_equal 1, paranoid_boolean.paranoid_with_counter_caches_count
+    updated_at = paranoid_boolean.reload.updated_at
 
     paranoid_with_counter_cache.destroy
 
     assert_equal 0, paranoid_boolean.reload.paranoid_with_counter_caches_count
+    assert_equal updated_at, paranoid_boolean.reload.updated_at
   end
 
   def test_decrement_custom_counters
@@ -561,6 +655,32 @@ class ParanoidTest < ParanoidBaseTest
     paranoid_with_custom_counter_cache.destroy
 
     assert_equal 0, paranoid_boolean.reload.custom_counter_cache
+  end
+
+  def test_decrement_counters_with_touch
+    paranoid_boolean = ParanoidBoolean.create!
+    paranoid_with_counter_cache = ParanoidWithTouchAndCounterCache
+      .create!(paranoid_boolean: paranoid_boolean)
+
+    assert_equal 1, paranoid_boolean.paranoid_with_touch_and_counter_caches_count
+    updated_at = paranoid_boolean.reload.updated_at
+
+    paranoid_with_counter_cache.destroy
+
+    assert_equal 0, paranoid_boolean.reload.paranoid_with_touch_and_counter_caches_count
+    assert_not_equal updated_at, paranoid_boolean.reload.updated_at
+  end
+
+  def test_touch_belongs_to
+    paranoid_boolean = ParanoidBoolean.create!
+    paranoid_with_counter_cache = ParanoidWithTouch
+      .create!(paranoid_boolean: paranoid_boolean)
+
+    updated_at = paranoid_boolean.reload.updated_at
+
+    paranoid_with_counter_cache.destroy
+
+    assert_not_equal updated_at, paranoid_boolean.reload.updated_at
   end
 
   def test_destroy_with_optional_belongs_to_and_counter_cache
@@ -629,5 +749,27 @@ class ParanoidTest < ParanoidBaseTest
   def test_explicitly_setting_table_name_after_acts_as_paranoid_macro
     assert_equal "explicit_table.deleted_at", ParanoidWithExplicitTableNameAfterMacro
       .paranoid_column_reference
+  end
+
+  def test_deleted_after_time
+    ParanoidTime.first.destroy
+    assert_equal 0, ParanoidTime.deleted_after_time(1.hour.from_now).count
+    assert_equal 1, ParanoidTime.deleted_after_time(1.hour.ago).count
+  end
+
+  def test_deleted_before_time
+    ParanoidTime.first.destroy
+    assert_equal 1, ParanoidTime.deleted_before_time(1.hour.from_now).count
+    assert_equal 0, ParanoidTime.deleted_before_time(1.hour.ago).count
+  end
+
+  def test_deleted_inside_time_window
+    ParanoidTime.first.destroy
+    assert_equal 1, ParanoidTime.deleted_inside_time_window(1.minute.ago, 2.minutes).count
+    assert_equal 1,
+                 ParanoidTime.deleted_inside_time_window(1.minute.from_now, 2.minutes).count
+    assert_equal 0, ParanoidTime.deleted_inside_time_window(3.minutes.ago, 1.minute).count
+    assert_equal 0,
+                 ParanoidTime.deleted_inside_time_window(3.minutes.from_now, 1.minute).count
   end
 end

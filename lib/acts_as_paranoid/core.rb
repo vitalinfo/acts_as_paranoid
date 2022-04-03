@@ -26,7 +26,7 @@ module ActsAsParanoid
       def only_deleted
         if string_type_with_deleted_value?
           without_paranoid_default_scope
-            .where(paranoid_column_reference => paranoid_configuration[:deleted_value])
+              .where(paranoid_column_reference => paranoid_configuration[:deleted_value])
         elsif boolean_type_not_nullable?
           without_paranoid_default_scope.where(paranoid_column_reference => true)
         else
@@ -40,13 +40,13 @@ module ActsAsParanoid
 
       def delete_all(conditions = nil)
         where(conditions)
-          .update_all(["#{paranoid_configuration[:column]} = ?", delete_now_value])
+            .update_all(["#{paranoid_configuration[:column]} = ?", delete_now_value])
       end
 
       def paranoid_default_scope
         if string_type_with_deleted_value?
           all.table[paranoid_column].eq(nil)
-            .or(all.table[paranoid_column].not_eq(paranoid_configuration[:deleted_value]))
+              .or(all.table[paranoid_column].not_eq(paranoid_configuration[:deleted_value]))
         elsif boolean_type_not_nullable?
           all.table[paranoid_column].eq(false)
         else
@@ -88,6 +88,14 @@ module ActsAsParanoid
         end
       end
 
+      def recovery_value
+        if boolean_type_not_nullable?
+          false
+        else
+          nil
+        end
+      end
+
       protected
 
       def define_deleted_time_scopes
@@ -96,19 +104,25 @@ module ActsAsParanoid
         }
 
         scope :deleted_after_time, lambda { |time|
-          where("#{table_name}.#{paranoid_column} > ?", time)
+          only_deleted
+              .where("#{table_name}.#{paranoid_column} > ?", time)
         }
         scope :deleted_before_time, lambda { |time|
-          where("#{table_name}.#{paranoid_column} < ?", time)
+          only_deleted
+              .where("#{table_name}.#{paranoid_column} < ?", time)
         }
       end
 
       def without_paranoid_default_scope
         scope = all
 
+        # unscope avoids applying the default scope when using this scope for associations
         scope = scope.unscope(where: paranoid_column)
-        # Fix problems with unscope group chain
-        scope = scope.unscoped if scope.to_sql.include? paranoid_default_scope.to_sql
+
+        paranoid_where_clause =
+            ActiveRecord::Relation::WhereClause.new([paranoid_default_scope])
+
+        scope.where_clause = all.where_clause - paranoid_where_clause
 
         scope
       end
@@ -138,11 +152,10 @@ module ActsAsParanoid
             # Handle composite keys, otherwise we would just use
             # `self.class.primary_key.to_sym => self.id`.
             self.class
-              .delete_all!(Hash[[Array(self.class.primary_key), Array(id)].transpose])
+                .delete_all!([Array(self.class.primary_key), Array(id)].transpose.to_h)
             decrement_counters_on_associations
           end
 
-          stale_paranoid_value
           @destroyed = true
           freeze
         end
@@ -150,6 +163,12 @@ module ActsAsParanoid
     end
 
     def destroy!
+      destroy || raise(
+          ActiveRecord::RecordNotDestroyed.new("Failed to destroy the record", self)
+      )
+    end
+
+    def destroy
       if !deleted?
         with_transaction_returning_status do
           run_callbacks :destroy do
@@ -157,7 +176,7 @@ module ActsAsParanoid
               # Handle composite keys, otherwise we would just use
               # `self.class.primary_key.to_sym => self.id`.
               self.class
-                .delete_all(Hash[[Array(self.class.primary_key), Array(id)].transpose])
+                  .delete_all([Array(self.class.primary_key), Array(id)].transpose.to_h)
               decrement_counters_on_associations
             end
 
@@ -172,30 +191,28 @@ module ActsAsParanoid
       end
     end
 
-    alias destroy destroy!
-
     def recover(options = {})
       return if !deleted?
 
       options = {
-        recursive: self.class.paranoid_configuration[:recover_dependent_associations],
-        recovery_window: self.class.paranoid_configuration[:dependent_recovery_window],
-        raise_error: false
+          recursive: self.class.paranoid_configuration[:recover_dependent_associations],
+          recovery_window: self.class.paranoid_configuration[:dependent_recovery_window],
+          raise_error: false
       }.merge(options)
 
       self.class.transaction do
         run_callbacks :recover do
           unless skip_recover
-            if options[:recursive]
-              recover_dependent_associations(options[:recovery_window], options)
-            end
             increment_counters_on_associations
-            self.paranoid_value = self.class.paranoid_configuration[:recovery_value]
-            if options[:raise_error]
-              save!
-            else
-              save
-            end
+            deleted_value = paranoid_value
+            self.paranoid_value = self.class.recovery_value
+            result = if options[:raise_error]
+                       save!
+                     else
+                       save
+                     end
+            recover_dependent_associations(deleted_value, options) if options[:recursive]
+            result
           end
         end
       end
@@ -205,38 +222,6 @@ module ActsAsParanoid
       options[:raise_error] = true
 
       recover(options)
-    end
-
-    def recover_dependent_associations(window, options)
-      self.class.dependent_associations.each do |reflection|
-        next unless (klass = get_reflection_class(reflection)).paranoid?
-
-        scope = if reflection.is_a?(ActiveRecord::Reflection::HasManyReflection)
-                  public_send(reflection.name).only_deleted
-                else
-                  klass.only_deleted.merge(get_association_scope(reflection: reflection))
-                end
-
-        # We can only recover by window if both parent and dependant have a
-        # paranoid column type of :time.
-        if self.class.paranoid_column_type == :time && klass.paranoid_column_type == :time
-          scope = scope.deleted_inside_time_window(paranoid_value, window)
-        end
-
-        scope.each do |object|
-          object.recover(options)
-        end
-      end
-    end
-
-    def destroy_dependent_associations!
-      self.class.dependent_associations.each do |reflection|
-        next unless (klass = get_reflection_class(reflection)).paranoid?
-
-        klass
-          .only_deleted.merge(get_association_scope(reflection: reflection))
-          .each(&:destroy!)
-      end
     end
 
     def deleted?
@@ -263,16 +248,54 @@ module ActsAsParanoid
 
     attr_reader :skip_recover
 
-    def get_association_scope(reflection:)
-      ActiveRecord::Associations::AssociationScope.scope(association(reflection.name))
+    def recover_dependent_associations(deleted_value, options)
+      self.class.dependent_associations.each do |reflection|
+        recover_dependent_association(reflection, deleted_value, options)
+      end
     end
 
-    def get_reflection_class(reflection)
-      if reflection.macro == :belongs_to && reflection.options.include?(:polymorphic)
-        send(reflection.foreign_type).constantize
-      else
-        reflection.klass
+    def destroy_dependent_associations!
+      self.class.dependent_associations.each do |reflection|
+        assoc = association(reflection.name)
+        next unless (klass = assoc.klass).paranoid?
+
+        klass
+            .only_deleted.merge(get_association_scope(assoc))
+            .each(&:destroy!)
       end
+    end
+
+    def recover_dependent_association(reflection, deleted_value, options)
+      assoc = association(reflection.name)
+      return unless (klass = assoc.klass).paranoid?
+
+      if reflection.belongs_to? && attributes[reflection.association_foreign_key].nil?
+        return
+      end
+
+      scope = if reflection.is_a?(ActiveRecord::Reflection::HasManyReflection)
+                public_send(reflection.name).only_deleted
+              else
+                klass.only_deleted.merge(get_association_scope(assoc))
+              end
+
+      # We can only recover by window if both parent and dependant have a
+      # paranoid column type of :time.
+      if self.class.paranoid_column_type == :time && klass.paranoid_column_type == :time
+        scope = scope.deleted_inside_time_window(deleted_value, options[:recovery_window])
+      end
+
+      recovered = false
+      scope.each do |object|
+        object.recover(options)
+        recovered = true
+      end
+
+      assoc.reload if recovered && reflection.has_one? && assoc.loaded?
+    end
+
+    def get_association_scope(dependent_association)
+      ActiveRecord::Associations::AssociationScope.scope(dependent_association)
     end
 
     def paranoid_value=(value)
@@ -280,15 +303,17 @@ module ActsAsParanoid
     end
 
     def update_counters_on_associations(method_sym)
-      return unless [:decrement_counter, :increment_counter].include? method_sym
-
       each_counter_cached_association_reflection do |assoc_reflection|
+        reflection_options = assoc_reflection.options
+        next unless reflection_options[:counter_cache]
+
         associated_object = send(assoc_reflection.name)
         next unless associated_object
 
         counter_cache_column = assoc_reflection.counter_cache_column
         associated_object.class.send(method_sym, counter_cache_column,
                                      associated_object.id)
+        associated_object.touch if reflection_options[:touch]
       end
     end
 

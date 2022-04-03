@@ -179,7 +179,7 @@ class AssociationsTest < ParanoidBaseTest
 
     parent.reload
 
-    assert_equal [], parent.paranoid_has_many_dependants.to_a
+    assert_empty parent.paranoid_has_many_dependants.to_a
     assert_equal [child], parent.paranoid_has_many_dependants.with_deleted.to_a
   end
 
@@ -195,7 +195,7 @@ class AssociationsTest < ParanoidBaseTest
     assert_not_nil obj.paranoid_time_with_deleted
 
     # Note that obj is destroyed because of dependent: :destroy in ParanoidTime
-    assert obj.destroyed?
+    assert_predicate obj, :destroyed?
 
     assert_empty ParanoidHasManyDependant.with_deleted.joins(:paranoid_time)
     assert_equal [obj],
@@ -236,8 +236,8 @@ class AssociationsTest < ParanoidBaseTest
 
     left.reload
 
-    assert_equal [], left.paranoid_many_many_children, "Linking objects not deleted"
-    assert_equal [], left.paranoid_many_many_parent_rights,
+    assert_empty left.paranoid_many_many_children, "Linking objects not deleted"
+    assert_empty left.paranoid_many_many_parent_rights,
                  "Associated objects not unlinked"
     assert_equal right, ParanoidManyManyParentRight.find(right.id),
                  "Associated object deleted"
@@ -252,8 +252,8 @@ class AssociationsTest < ParanoidBaseTest
 
     left.reload
 
-    assert_equal [], left.paranoid_many_many_children, "Linking objects not deleted"
-    assert_equal [], left.paranoid_many_many_parent_rights,
+    assert_empty left.paranoid_many_many_children, "Linking objects not deleted"
+    assert_empty left.paranoid_many_many_parent_rights,
                  "Associated objects not unlinked"
     assert_equal right, ParanoidManyManyParentRight.find(right.id),
                  "Associated object deleted"
@@ -270,7 +270,7 @@ class AssociationsTest < ParanoidBaseTest
 
     left.reload
 
-    assert_equal [], left.paranoid_many_many_parent_rights, "Associated objects not deleted"
+    assert_empty left.paranoid_many_many_parent_rights, "Associated objects not deleted"
   end
 
   def test_cannot_find_a_paranoid_deleted_model
@@ -346,13 +346,9 @@ class AssociationsTest < ParanoidBaseTest
     assert_not_nil not_paranoid.paranoid_time
   end
 
-  def test_mass_assignment_of_paranoid_column_enabled
-    if Gem.loaded_specs["activerecord"].version >= Gem::Version.new("5.2.0")
-      skip "Creation as deleted is not supported with Rails >= 5.2"
+  def test_mass_assignment_of_paranoid_column_disabled
+    assert_raises ActiveRecord::RecordNotSaved do
+      ParanoidTime.create! name: "Foo", deleted_at: Time.now
     end
-    now = Time.now
-    record = ParanoidTime.create! name: "Foo", deleted_at: now
-    assert_equal "Foo", record.name
-    assert_equal now, record.deleted_at
   end
 end

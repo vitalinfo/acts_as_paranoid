@@ -2,25 +2,37 @@
 # run tests with Rake
 # For more information see: https://github.com/marketplace/actions/setup-ruby-jruby-and-truffleruby
 
-name: Ruby
+name: CI
 
 on:
   push:
     branches: [ master ]
   pull_request:
     branches: [ master ]
+  schedule:
+    - cron: '16 4 12 * *'
 
 jobs:
   test:
+
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        ruby: [2.5, 2.6, 2.7, jruby-9.2]
-        gemfile: [active_record_52, active_record_60]
-        include:
-          - ruby: 2.4
+        ruby: [2.6, 2.7, "3.0", "3.1", jruby-9.3]
+        gemfile: [active_record_52, active_record_60, active_record_61, active_record_70]
+        exclude:
+          # Rails 5.2 does not support Ruby 3.0
+          - ruby: "3.0"
             gemfile: active_record_52
+          # Rails 5.2 does not support Ruby 3.1
+          - ruby: "3.1"
+            gemfile: active_record_52
+          # Rails 7.0 does not support Ruby 2.6 and jruby-9.3 is still depends on ruby 2.6
+          - ruby: 2.6
+            gemfile: active_record_70
+          - ruby: jruby-9.3
+            gemfile: active_record_70
 
     env:
       BUNDLE_GEMFILE: gemfiles/${{ matrix.gemfile }}.gemfile
@@ -53,6 +65,7 @@ jobs:
         run: bundle exec rake test
 
   rubocop:
+
     runs-on: ubuntu-latest
 
     steps:

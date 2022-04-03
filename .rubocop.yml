@@ -1,11 +1,15 @@
 inherit_from: .rubocop_todo.yml
 
-# Exclude any vendored gems
+inherit_mode:
+  merge:
+    - Exclude
+
+require:
+  - rubocop-minitest
+
 AllCops:
-  Exclude:
-    - 'vendor/**/*'
   NewCops: enable
-  TargetRubyVersion: 2.4
+  TargetRubyVersion: 2.6
 
 # Be lenient with line length
 Layout/LineLength:
@@ -20,6 +24,20 @@ Layout/MultilineMethodCallIndentation:
 # harder to keep a sane line length.
 Layout/MultilineOperationIndentation:
   EnforcedStyle: indented
+
+# Allow test classes to have any length
+Metrics/ClassLength:
+  Exclude:
+    - 'test/**/*'
+
+# Allow test methods to have any length
+Metrics/MethodLength:
+  Exclude:
+    - 'test/**/*'
+
+# Allow else clauses with explicit nil value
+Style/EmptyElse:
+  EnforcedStyle: empty
 
 # In guard clauses, if ! is often more immediately clear
 Style/NegatedIf:

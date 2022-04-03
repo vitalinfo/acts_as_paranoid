@@ -2,6 +2,51 @@
 
 Notable changes to this project will be documented in this file.
 
+## 0.8.0
+
+* Do not set `paranoid_value` when destroying fully ([#238], by [Aymeric Le Dorze][aymeric-ledorze])
+* Make helper methods for dependent associations private ([#239], by [Matijs van Zuijlen][mvz])
+* Raise ActiveRecord::RecordNotDestroyed if destroy returns false ([#240], by [Hao Liu][leomayleomay])
+* Make unscoping by `with_deleted` less blunt ([#241], by [Matijs van Zuijlen][mvz])
+* Drop support for Ruby 2.4 and 2.5 ([#243] and [#245] by [Matijs van Zuijlen][mvz])
+* Remove deprecated methods ([#244] by [Matijs van Zuijlen][mvz])
+* Remove test files from the gem ([#261] by [Matijs van Zuijlen][mvz])
+* Add support for Rails 7 ([#262] by [Vederis Leunardus][cloudsbird])
+
+## 0.7.3
+
+## Improvements
+
+* Fix deletion time scopes ([#212] by [Matijs van Zuijlen][mvz])
+* Reload `has_one` associations after dependent recovery ([#214],
+  by [Matijs van Zuijlen][mvz])
+* Make dependent recovery work when parent is non-optional ([#227],
+  by [Matijs van Zuijlen][mvz])
+* Avoid querying nil `belongs_to` associations when recovering ([#219],
+  by [Matijs van Zuijlen][mvz])
+* On relations, deprecate `destroy!` in favour of `destroy_fully!` ([#222],
+  by [Matijs van Zuijlen][mvz])
+* Deprecate the undocumented `:recovery_value` setting. Calculate the correct
+  value instead. ([#220], by [Matijs van Zuijlen][mvz])
+
+## Developer experience
+
+* Log ActiveRecord activity to a visible log during tests ([#218],
+  by [Matijs van Zuijlen][mvz])
+
+## 0.7.2
+
+* Do not set boolean column to NULL on recovery if nulls are not allowed
+  ([#193], by [Shodai Suzuki][soartec-lab])
+* Add a CONTRIBUTING.md file ([#207], by [Matijs van Zuijlen][mvz])
+
+## 0.7.1
+
+* Support Rails 6.1 ([#191], by [Matijs van Zuijlen][mvz])
+* Support `belongs_to` with both `:touch` and `:counter_cache` options ([#208],
+  by [Matijs van Zuijlen][mvz] with [Paul Druziak][pauldruziak])
+* Support Ruby 3.0 ([#209], by [Matijs van Zuijlen][mvz])
+
 ## 0.7.0
 
 ### Breaking changes
@@ -70,21 +115,46 @@ Notable changes to this project will be documented in this file.
 [AlexWheeler]: https://github.com/AlexWheeler
 [RomainAlexandre]: https://github.com/RomainAlexandre
 [avinoth]: https://github.com/avinoth
+[cloudsbird]: https://github.com/cloudsbird
 [aymeric-ledorze]: https://github.com/aymeric-ledorze
 [danielricecodes]: https://github.com/danielricecodes
 [jbryant92]: https://github.com/jbryant92
 [kevinmcalear]: https://github.com/kevinmcalear
+[leomayleomay]: https://github.com/leomayleomay
 [marycodes2]: https://github.com/marycodes2
 [mvz]: https://github.com/mvz
 [nedcampion]: https://github.com/nedcampion
 [ri4a]: https://github.com/ri4a
+[pauldruziak]: https://github.com/pauldruziak
 [shadydealer]: https://github.com/shadydealer
+[soartec-lab]: https://github.com/soartec-lab
 [thebravoman]: https://github.com/thebravoman
 [valeriecodes]: https://github.com/valeriecodes
 [wtfspm]: https://github.com/wtfspm
 
 <!-- issues & pull requests -->
 
+[#262]: https://github.com/ActsAsParanoid/acts_as_paranoid/pull/262
+[#261]: https://github.com/ActsAsParanoid/acts_as_paranoid/pull/261
+[#245]: https://github.com/ActsAsParanoid/acts_as_paranoid/pull/245
+[#244]: https://github.com/ActsAsParanoid/acts_as_paranoid/pull/244
+[#243]: https://github.com/ActsAsParanoid/acts_as_paranoid/pull/243
+[#241]: https://github.com/ActsAsParanoid/acts_as_paranoid/pull/241
+[#240]: https://github.com/ActsAsParanoid/acts_as_paranoid/pull/240
+[#239]: https://github.com/ActsAsParanoid/acts_as_paranoid/pull/239
+[#238]: https://github.com/ActsAsParanoid/acts_as_paranoid/pull/238
+[#227]: https://github.com/ActsAsParanoid/acts_as_paranoid/pull/227
+[#222]: https://github.com/ActsAsParanoid/acts_as_paranoid/pull/222
+[#220]: https://github.com/ActsAsParanoid/acts_as_paranoid/pull/220
+[#219]: https://github.com/ActsAsParanoid/acts_as_paranoid/pull/219
+[#218]: https://github.com/ActsAsParanoid/acts_as_paranoid/pull/218
+[#214]: https://github.com/ActsAsParanoid/acts_as_paranoid/pull/214
+[#212]: https://github.com/ActsAsParanoid/acts_as_paranoid/pull/212
+[#209]: https://github.com/ActsAsParanoid/acts_as_paranoid/pull/209
+[#208]: https://github.com/ActsAsParanoid/acts_as_paranoid/pull/208
+[#207]: https://github.com/ActsAsParanoid/acts_as_paranoid/pull/207
+[#193]: https://github.com/ActsAsParanoid/acts_as_paranoid/pull/193
+[#191]: https://github.com/ActsAsParanoid/acts_as_paranoid/pull/191
 [#175]: https://github.com/ActsAsParanoid/acts_as_paranoid/pull/175
 [#173]: https://github.com/ActsAsParanoid/acts_as_paranoid/pull/173
 [#171]: https://github.com/ActsAsParanoid/acts_as_paranoid/pull/171

@@ -9,6 +9,14 @@ rescue Bundler::BundlerError => e
   exit e.status_code
 end
 
+if RUBY_ENGINE == "jruby"
+  # Workaround for issue in I18n/JRuby combo.
+  # See https://github.com/jruby/jruby/issues/6547 and
+  # https://github.com/ruby-i18n/i18n/issues/555
+  require "i18n/backend"
+  require "i18n/backend/simple"
+end
+
 require "simplecov"
 SimpleCov.start do
   enable_coverage :branch
@@ -16,6 +24,7 @@ end
 
 require "acts_as_paranoid"
 require "minitest/autorun"
+require "minitest/focus"
 
 # Silence deprecation halfway through the test
 I18n.enforce_available_locales = true
@@ -23,8 +32,12 @@ I18n.enforce_available_locales = true
 ActiveRecord::Base.establish_connection(adapter: "sqlite3", database: ":memory:")
 ActiveRecord::Schema.verbose = false
 
+log_dir = File.expand_path("../log/", __dir__)
+FileUtils.mkdir_p log_dir
+file_path = File.join(log_dir, "test.log")
+ActiveRecord::Base.logger = Logger.new(file_path)
+
 # rubocop:disable Metrics/AbcSize
-# rubocop:disable Metrics/MethodLength
 def setup_db
   ActiveRecord::Schema.define(version: 1) do # rubocop:disable Metrics/BlockLength
     create_table :paranoid_times do |t|
@@ -41,6 +54,7 @@ def setup_db
       t.boolean   :is_deleted
       t.integer   :paranoid_time_id
       t.integer   :paranoid_with_counter_caches_count
+      t.integer   :paranoid_with_touch_and_counter_caches_count
       t.integer   :custom_counter_cache
       timestamps t
     end
@@ -159,22 +173,6 @@ def setup_db
       timestamps t
     end
 
-    create_table :paranoid_forests do |t|
-      t.string   :name
-      t.boolean  :rainforest
-      t.datetime :deleted_at
-
-      timestamps t
-    end
-
-    create_table :paranoid_trees do |t|
-      t.integer  :paranoid_forest_id
-      t.string   :name
-      t.datetime :deleted_at
-
-      timestamps t
-    end
-
     create_table :paranoid_polygons do |t|
       t.integer :sides
       t.datetime :deleted_at
@@ -231,11 +229,18 @@ def setup_db
 
       timestamps t
     end
+
+    create_table :paranoid_with_serialized_columns do |t|
+      t.string :name
+      t.datetime :deleted_at
+      t.string :colors
+
+      timestamps t
+    end
   end
 end
-# rubocop:enable Metrics/AbcSize
-# rubocop:enable Metrics/MethodLength
 
+# rubocop:enable Metrics/AbcSize
 def timestamps(table)
   table.column  :created_at, :timestamp, null: false
   table.column  :updated_at, :timestamp, null: false
@@ -260,6 +265,18 @@ class ParanoidTime < ActiveRecord::Base
   has_one :has_one_not_paranoid, dependent: :destroy
 
   belongs_to :not_paranoid, dependent: :destroy
+
+  attr_accessor :destroyable
+
+  before_destroy :ensure_destroyable
+
+  protected
+
+  def ensure_destroyable
+    return if destroyable.nil?
+
+    throw(:abort) unless destroyable
+  end
 end
 
 class ParanoidBoolean < ActiveRecord::Base
@@ -271,6 +288,8 @@ class ParanoidBoolean < ActiveRecord::Base
   has_one :paranoid_has_one_dependant, dependent: :destroy
   has_many :paranoid_with_counter_cache, dependent: :destroy
   has_many :paranoid_with_custom_counter_cache, dependent: :destroy
+  has_many :paranoid_with_touch_and_counter_cache, dependent: :destroy
+  has_many :paranoid_with_touch, dependent: :destroy
 end
 
 class ParanoidString < ActiveRecord::Base
@@ -278,6 +297,7 @@ class ParanoidString < ActiveRecord::Base
 end
 
 class NotParanoid < ActiveRecord::Base
+  has_many :paranoid_times
 end
 
 class ParanoidNoDoubleTapDestroysFully < ActiveRecord::Base
@@ -315,11 +335,19 @@ class ParanoidWithCounterCacheOnOptionalBelognsTo < ActiveRecord::Base
   self.table_name = "paranoid_with_counter_caches"
 
   acts_as_paranoid
-  if ActiveRecord::VERSION::MAJOR < 5
-    belongs_to :paranoid_boolean, counter_cache: true, required: false
-  else
-    belongs_to :paranoid_boolean, counter_cache: true, optional: true
-  end
+  belongs_to :paranoid_boolean, counter_cache: true, optional: true
+end
+
+class ParanoidWithTouch < ActiveRecord::Base
+  self.table_name = "paranoid_with_counter_caches"
+  acts_as_paranoid
+  belongs_to :paranoid_boolean, touch: true
+end
+
+class ParanoidWithTouchAndCounterCache < ActiveRecord::Base
+  self.table_name = "paranoid_with_counter_caches"
+  acts_as_paranoid
+  belongs_to :paranoid_boolean, touch: true, counter_cache: true
 end
 
 class ParanoidHasManyDependant < ActiveRecord::Base
@@ -478,10 +506,6 @@ class ParanoidBaseTest < ActiveSupport::TestCase
     teardown_db
   end
 
-  def assert_empty(collection)
-    assert(collection.respond_to?(:empty?) && collection.empty?)
-  end
-
   def assert_paranoid_deletion(model)
     row = find_row(model)
     assert_not_nil row, "#{model.class} entirely deleted"
@@ -498,22 +522,6 @@ class ParanoidBaseTest < ActiveSupport::TestCase
     # puts sql here if you want to debug
     model.class.connection.select_one(sql)
   end
-end
-
-class ParanoidForest < ActiveRecord::Base
-  acts_as_paranoid
-
-  ActiveRecord::Base.logger = Logger.new(StringIO.new)
-
-  scope :rainforest, -> { where(rainforest: true) }
-
-  has_many :paranoid_trees, dependent: :destroy
-end
-
-class ParanoidTree < ActiveRecord::Base
-  acts_as_paranoid
-  belongs_to :paranoid_forest
-  validates_presence_of :name
 end
 
 class ParanoidPolygon < ActiveRecord::Base
@@ -538,4 +546,13 @@ end
 class ParanoidWithExplicitTableNameAfterMacro < ActiveRecord::Base
   acts_as_paranoid
   self.table_name = "explicit_table"
+end
+
+class ParanoidWithSerializedColumn < ActiveRecord::Base
+  acts_as_paranoid
+  validates_as_paranoid
+
+  serialize :colors, Array
+
+  validates_uniqueness_of_without_deleted :colors
 end
