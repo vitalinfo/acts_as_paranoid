@@ -203,15 +203,14 @@ module ActsAsParanoid
       self.class.transaction do
         run_callbacks :recover do
           unless skip_recover
+            recover_dependent_associations(paranoid_value, options) if options[:recursive]
             increment_counters_on_associations
-            deleted_value = paranoid_value
             self.paranoid_value = self.class.recovery_value
             result = if options[:raise_error]
                        save!
                      else
                        save
                      end
-            recover_dependent_associations(deleted_value, options) if options[:recursive]
             result
           end
         end
