@@ -6,10 +6,20 @@ inherit_mode:
 
 require:
   - rubocop-minitest
+  - rubocop-packaging
+  - rubocop-performance
+  - rubocop-rake
 
 AllCops:
   NewCops: enable
-  TargetRubyVersion: 2.6
+  TargetRubyVersion: 3.0
+
+# Put development dependencies in the gemspec so rubygems.org knows about them
+Gemspec/DevelopmentDependencies:
+  EnforcedStyle: gemspec
+
+Layout/LineContinuationLeadingSpace:
+  EnforcedStyle: leading
 
 # Be lenient with line length
 Layout/LineLength:

@@ -5,6 +5,7 @@ require "acts_as_paranoid/core"
 require "acts_as_paranoid/associations"
 require "acts_as_paranoid/validations"
 require "acts_as_paranoid/relation"
+require "acts_as_paranoid/association_reflection"
 
 module ActsAsParanoid
   def paranoid?
@@ -29,9 +30,7 @@ module ActsAsParanoid
       dependent_recovery_window: 2.minutes,
       double_tap_destroys_fully: true
     }
-    if options[:column_type] == "string"
-      paranoid_configuration.merge!(deleted_value: "deleted")
-    end
+    paranoid_configuration[:deleted_value] = "deleted" if options[:column_type] == "string"
 
     paranoid_configuration.merge!(options) # user options
 
@@ -63,3 +62,6 @@ ActiveRecord::Relation.include ActsAsParanoid::Relation
 
 # Push the recover callback onto the activerecord callback list
 ActiveRecord::Callbacks::CALLBACKS.push(:before_recover, :after_recover)
+
+ActiveRecord::Reflection::AssociationReflection
+  .prepend ActsAsParanoid::AssociationReflection

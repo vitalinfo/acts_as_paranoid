@@ -74,9 +74,11 @@ module ActsAsParanoid
         "#{table_name}.#{paranoid_column}"
       end
 
+      DESTROYING_ASSOCIATION_DEPENDENCY_TYPES = [:destroy, :delete_all].freeze
+
       def dependent_associations
         reflect_on_all_associations.select do |a|
-          [:destroy, :delete_all].include?(a.options[:dependent])
+          DESTROYING_ASSOCIATION_DEPENDENCY_TYPES.include?(a.options[:dependent])
         end
       end
 
@@ -317,7 +319,7 @@ module ActsAsParanoid
     end
 
     def each_counter_cached_association_reflection
-      _reflections.each do |_name, reflection|
+      _reflections.each_value do |reflection|
         yield reflection if reflection.belongs_to? && reflection.counter_cache_column
       end
     end
