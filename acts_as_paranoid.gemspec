@@ -21,20 +21,19 @@ Gem::Specification.new do |spec|
   spec.files = File.read("Manifest.txt").split
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "activerecord", ">= 6.1", "< 8"
-  spec.add_dependency "activesupport", ">= 6.1", "< 8"
+  spec.add_dependency "activerecord", ">= 6.1", "< 8.1"
+  spec.add_dependency "activesupport", ">= 6.1", "< 8.1"
 
   spec.add_development_dependency "appraisal", "~> 2.3"
   spec.add_development_dependency "minitest", "~> 5.14"
   spec.add_development_dependency "minitest-around", "~> 0.5"
   spec.add_development_dependency "minitest-focus", "~> 1.3"
   spec.add_development_dependency "minitest-stub-const", "~> 0.6"
-  spec.add_development_dependency "pry", "~> 0.14.1"
   spec.add_development_dependency "rake", "~> 13.0"
   spec.add_development_dependency "rake-manifest", "~> 0.2.0"
   spec.add_development_dependency "rdoc", "~> 6.3"
   spec.add_development_dependency "rubocop", "~> 1.52"
-  spec.add_development_dependency "rubocop-minitest", "~> 0.35.0"
+  spec.add_development_dependency "rubocop-minitest", "~> 0.36.0"
   spec.add_development_dependency "rubocop-packaging", "~> 0.5.2"
   spec.add_development_dependency "rubocop-performance", "~> 1.18"
   spec.add_development_dependency "rubocop-rake", "~> 0.6.0"

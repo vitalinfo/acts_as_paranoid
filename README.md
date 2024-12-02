@@ -1,6 +1,6 @@
 # ActsAsParanoid
 
-[![Build Status](https://travis-ci.org/ActsAsParanoid/acts_as_paranoid.png?branch=master)](https://travis-ci.org/ActsAsParanoid/acts_as_paranoid)
+[![CI](https://github.com/ActsAsParanoid/acts_as_paranoid/actions/workflows/ruby.yml/badge.svg)](https://github.com/ActsAsParanoid/acts_as_paranoid/actions/workflows/ruby.yml)
 
 A Rails plugin to add soft delete.
 
@@ -26,7 +26,7 @@ please require an older version of the `acts_as_paranoid` gem.
 #### Install gem
 
 ```ruby
-gem 'acts_as_paranoid'
+gem "acts_as_paranoid", "~> 0.10.3"
 ```
 
 ```shell
