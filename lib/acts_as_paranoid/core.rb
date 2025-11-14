@@ -19,8 +19,8 @@ module ActsAsParanoid
         set_callback :recover, :after, method
       end
 
-      def with_deleted
-        without_paranoid_default_scope
+      def with_deleted(strict: false)
+        without_paranoid_default_scope(strict:)
       end
 
       def only_deleted
@@ -115,12 +115,14 @@ module ActsAsParanoid
         }
       end
 
-      def without_paranoid_default_scope
+      def without_paranoid_default_scope(strict: false)
         scope = all
 
-        unless scope.unscope_values.include?({ where: paranoid_column_reference })
+        condition = strict ? paranoid_column_reference: paranoid_column
+
+        unless scope.unscope_values.include?({ where: condition })
           # unscope avoids applying the default scope when using this scope for associations
-          scope = scope.unscope(where: paranoid_column_reference)
+          scope = scope.unscope(where: condition)
         end
 
         scope

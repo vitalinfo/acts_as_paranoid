@@ -119,6 +119,12 @@ class AssociationsTest < ActiveSupport::TestCase
           _(author.reload.books.with_deleted).must_equal [book]
         end
 
+        it "does not include destroyed records with deleted join records in .with_deleted scope with strict" do
+          book.destroy
+
+          _(author.reload.books.with_deleted(strict: true)).must_equal []
+        end
+
         it "includes records with deleted join records in .with_deleted scope" do
           author.books.destroy(book)
 
