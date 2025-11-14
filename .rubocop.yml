@@ -23,7 +23,7 @@ Layout/LineContinuationLeadingSpace:
 
 # Be lenient with line length
 Layout/LineLength:
-  Max: 92
+  Max: 120
 
 # Multi-line method calls should be simply indented. Aligning them makes it
 # even harder to keep a sane line length.
