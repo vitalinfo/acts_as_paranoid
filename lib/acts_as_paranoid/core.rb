@@ -107,20 +107,20 @@ module ActsAsParanoid
 
         scope :deleted_after_time, lambda { |time|
           only_deleted
-              .where("#{table_name}.#{paranoid_column} > ?", time)
+              .where("#{paranoid_column_reference} > ?", time)
         }
         scope :deleted_before_time, lambda { |time|
           only_deleted
-              .where("#{table_name}.#{paranoid_column} < ?", time)
+              .where("#{paranoid_column_reference} < ?", time)
         }
       end
 
       def without_paranoid_default_scope
         scope = all
 
-        unless scope.unscope_values.include?({ where: paranoid_column })
+        unless scope.unscope_values.include?({ where: paranoid_column_reference })
           # unscope avoids applying the default scope when using this scope for associations
-          scope = scope.unscope(where: paranoid_column)
+          scope = scope.unscope(where: paranoid_column_reference)
         end
 
         scope
