@@ -267,7 +267,7 @@ module ActsAsParanoid
 
     def recover_dependent_association(reflection, deleted_value, options)
       assoc = association(reflection.name)
-      return unless (klass = assoc.klass).paranoid?
+      return unless (klass = assoc.klass)&.paranoid?
 
       if reflection.belongs_to? && attributes[reflection.association_foreign_key].nil?
         return
