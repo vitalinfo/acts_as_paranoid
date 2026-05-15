@@ -23,7 +23,9 @@ module ActsAsParanoid
 
         def delete_all(conditions = nil)
           if paranoid?
-            where(conditions).update_all(paranoid_deletion_attributes)
+            where(conditions)
+              .distinct(false)
+              .update_all(paranoid_deletion_attributes)
           else
             delete_all!(conditions)
           end
