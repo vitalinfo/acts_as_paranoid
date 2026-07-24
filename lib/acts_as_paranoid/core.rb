@@ -257,7 +257,7 @@ module ActsAsParanoid
     def destroy_dependent_associations!
       self.class.dependent_associations.each do |reflection|
         assoc = association(reflection.name)
-        next unless (klass = assoc.klass).paranoid?
+        next unless (klass = assoc.klass)&.paranoid?
 
         klass
           .only_deleted.merge(get_association_scope(assoc))
