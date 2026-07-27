@@ -26,7 +26,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "activesupport", ">= 6.1", "< 8.2"
 
   spec.add_development_dependency "appraisal", "~> 2.3"
-  spec.add_development_dependency "minitest", "~> 5.14"
+  spec.add_development_dependency "minitest", "~> 6.0"
   spec.add_development_dependency "minitest-around", "~> 0.5"
   spec.add_development_dependency "minitest-focus", "~> 1.3"
   spec.add_development_dependency "minitest-stub-const", "~> 0.6"
